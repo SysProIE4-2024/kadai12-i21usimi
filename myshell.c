@@ -68,6 +68,12 @@ void findRedirect(char *args[]) {               // リダイレクトの指示�
 }
 
 void redirect(int fd, char *path, int flag) {   // リダイレクト処理をする
+  close(fd);
+  int nfd = open(path, flag, 0644);
+  if (nfd < 0){
+    perror(path);
+    exit(1);
+  }
   //
   // externalCom 関数のどこかから呼び出される
   //
@@ -86,6 +92,10 @@ void externalCom(char *args[]) {                // 外部コマンドを実行�
     exit(1);                                    //     非常事態，親を終了
   }
   if (pid==0) {                                 //   子プロセスなら
+    if (ifile != NULL)
+      redirect(0, ifile, O_RDONLY);
+    if (ofile != NULL)
+      redirect(1, ofile, O_WRONLY|O_TRUNC|O_CREAT);
     execvp(args[0], args);                      //     コマンドを実行
     perror(args[0]);
     exit(1);
@@ -130,3 +140,34 @@ int main() {
   return 0;
 }
 
+/*
+実行例
+% make
+cc -D_GNU_SOURCE -Wall -std=c99 -o myshell myshell.c
+% ./myshell
+Command: ls
+Makefile	README.md	README.pdf	myshell		myshell.c
+Command: echo abc > a.txt
+Command: cat a.txt
+abc
+Command: ls > a.txt
+Command: cat a.txt
+Makefile
+README.md
+README.pdf
+a.txt
+myshell
+myshell.c
+Command: grep .md < a.txt
+README.md
+Command: grep .md < a.txt > b.txt
+Command: cat b.txt
+README.md
+Command: grep .pdf < x.txt
+x.txt: No such file or directory
+Command: grep .pdf > /z.txt
+/z.txt: Read-only file system
+Command: grep .pdf < x.txt > /z.pdf
+x.txt: No such file or directory
+Command: ^D
+*/
